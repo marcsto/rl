@@ -7,55 +7,72 @@
 """
 import gym
 import numpy as np
+from gym.spaces.box import Box
+from gym import wrappers
+import os
     
-EVAL_RUNS = 10
-
+EVAL_RUNS = 1
+print(os.environ['PATH'])
 # Setup the environment
 PROBLEM_NAME_CAR_POLE = 'CartPole-v0'
 PROBLEM_NAME_MOUNTAIN_CAR = 'MountainCar-v0'
 #'Acrobot-v1' 'Pendulum-v0'
 #'BipedalWalker-v2'
-problem_name = PROBLEM_NAME_MOUNTAIN_CAR
+problem_name = 'BipedalWalker-v2'
  
 env = gym.make(problem_name)
+env = wrappers.Monitor(env, 'E:/tmp/BipedalWalker-v2-06')
 observation_size = env.observation_space.shape[0]
-action_size = env.action_space.n
+
+action_is_discrete = False
+if isinstance(env.action_space, Box):
+    action_size = env.action_space.shape[0]
+    print(env.action_space.high)
+    print(env.action_space.low)
+else:
+    print("Not Box")
+    action_size = env.action_space
+    action_is_discrete = True
+
 print("Observation Size:", observation_size)
 print("Action size:", action_size)
 
 def computeReward(agent, render=False):
     """ Computes the reward signal for a specified agent. """
     all_run_reward_sum = 0
+    all_frame_sum = 0
     # Take the average of multiple runs to smooth out results
-    min_position = 1
-    max_position = -2
     actions = []
     won = False
     for _ in range(EVAL_RUNS):
         observation = env.reset()
         step_count = 0
         reward_sum = 0
+        still_frames = 0
         while True:
             if (render):
                 env.render()
             action = agent.take_action(observation)
             actions.append(action)
             observation, reward, done, _ = env.step(action)
-            won = won or observation[0] >= 0.5
-            if (observation[0] > max_position):
-                max_position = observation[0]
-            if (observation[0] < min_position):
-                min_position = observation[0]
+            #won = won or observation[0] >= 0.5
             reward_sum += reward
             step_count += 1
+            
+            if False and abs(observation[2]) <= 0.000001:
+                still_frames += 1
+                if (still_frames > 100):
+                    break
+            else:
+                still_frames = 0
+            all_frame_sum += 1
             if done:
                 all_run_reward_sum += reward_sum
                 break
     avg_reward = all_run_reward_sum / EVAL_RUNS
-    #if (problem_name == PROBLEM_NAME_MOUNTAIN_CAR):
-    #    avg_reward += (max_position - min_position) * 30
+    avg_frame = all_frame_sum / EVAL_RUNS
     won = False
-    return avg_reward, actions, won
+    return avg_reward, actions, avg_frame, won
 
 def summarize_actions(actions):
     summarized = []
@@ -88,9 +105,16 @@ class ActionAgent(Agent):
             start_index = i * observation_size
             end_index = start_index + observation_size
             result[i] = np.matmul(observation, self.weights[start_index: end_index])
+            if (not action_is_discrete):
+                pass
+                # Clamp the result to the bounds of the action for this problem
+                #result[i] = result[i] 
         
-        max_action = np.argmax(result)
-        return max_action
+        if (action_is_discrete):
+            selected_action = np.argmax(result)
+        else:
+            selected_action = result
+        return selected_action
     
     
 """ 
@@ -106,36 +130,63 @@ class ActionAgent(Agent):
 class NaturalEvolutionOptimizer:
     def optimize(self):
         npop = 30  # population size  
-        sigma = 0.3  # noise standard deviation  
+        initial_sigma = 0.2
+        sigma = initial_sigma  # noise standard deviation  
         alpha = 0.1  # learning rate
         
         w = np.random.randn(observation_size * action_size)  # initial guess  
         i = 0
+        last_all_equal = False
         while True:
-            i += 1
-            print("Starting iteration ", i)
+            if (last_all_equal):
+                sigma = sigma + 0.1
+                print('New sigma is', sigma)
+            elif (sigma > initial_sigma):
+                sigma = sigma - 0.1
+                print('New sigma is', sigma) 
             N = np.random.randn(npop, observation_size * action_size)
             R = np.zeros(npop)
+            F = np.zeros(npop)
             for j in range(npop):
                 w_try = w + sigma * N[j]
                 agent = ActionAgent(w_try)
-                R[j], actions, won = computeReward(agent)  # f(w_try)
+                
+                R[j], actions, F[j], won = computeReward(agent, False)
                 #print(R[j], w_try, j, i, summarize_actions(actions), won)
                 #if (won):
                 #    _, _, _ = computeReward(agent, render=True)
+            
+            if i % 25 == 0:
+                best_vector_index = np.argmax(R)
+                reward, _, frames, _ = computeReward(ActionAgent(w + sigma * N[best_vector_index]), True)
+                print(reward, frames, i)
+            
+            
+            mean = np.mean(R)
+            #if (mean <= -10000):
+                # Use frame count as the target function instead of the reward.
+            #    R = F
+            #    mean = np.mean(R)
             stdDev = np.std(R)
+            
             if (stdDev == 0):
                 print("All equal")
                 if (won):
                     break;
                 # Set a new random starting position
-                w = np.random.randn(observation_size * action_size)
+                if (i < 1000):
+                    print("Resetting weights to random point")
+                    w = np.random.randn(observation_size * action_size)
+                #last_all_equal = True
             else:
-                mean = np.mean(R)
+                last_all_equal = False
                 A = (R - mean) / np.std(R)
                 w = w + alpha / (npop * sigma) * np.dot(N.T, A)
-                print("Mean", mean, won, w)
-        
+                if (i % 10 == 0):
+                    print("Mean", mean, won, i, repr(w))
+                else:
+                    print("Mean", mean, won, i)
+            i += 1
         print(w)
         return ActionAgent(w)
     
