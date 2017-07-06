@@ -16,9 +16,9 @@ from natural_evolution_optimizer import NaturalEvolutionOptimizer
 from task import computeReward
 from model import LinearModel
 import weight
+from gym.scoreboard import scoring
 
-random.seed(0)
-np.random.seed(0)
+
 
 print(os.environ['PATH'])
 # Setup the environment
@@ -48,11 +48,12 @@ def run_manual():
     final_reward, actions, _ = computeReward(LinearModel(w), True)
     print("Final reward = ", final_reward, task.summarize_actions(actions))
     
-
-    
 if __name__ == '__main__':
-    #run_evolvolve(get_initial_weight())
+    random.seed(0)
+    np.random.seed(0)
+    #run_evolvolve(get_initial_weight())    
     run_evolvolve(weight.random_weights())
+    #print(scoring.score_from_local(hyper_param.OUTPUT_DIR))
     #run_manual()
     #w = [0.35431518  ,-7.80998257   ,0.08284797  ,17.61420183   ,3.44219892, 0.96508483] # CartPole-v1
     #w = [-2.18829    ,-22.43855965  ,-1.37641763  ,-5.1617201   ,-2.37288426, 26.50576672] # MountainCar

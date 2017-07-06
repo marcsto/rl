@@ -1,16 +1,20 @@
 import gym
 from gym import wrappers
 from gym.spaces.box import Box
+import hyper_param
 
 PROBLEM_NAME_CAR_POLE = 'CartPole-v0'
+
 PROBLEM_NAME_MOUNTAIN_CAR = 'MountainCar-v0'
 #'Acrobot-v1' 'Pendulum-v0'
 #'BipedalWalker-v2'
 
+
 problem_name = PROBLEM_NAME_CAR_POLE #PROBLEM_NAME_MOUNTAIN_CAR #'BipedalWalker-v2'
+WINNING_REWARD = 195.0
  
 env = gym.make(problem_name)
-#env = wrappers.Monitor(env, 'E:/tmp/BipedalWalker-v2-09', force=True)
+env = wrappers.Monitor(env, hyper_param.OUTPUT_DIR, video_callable=False, force=True)
 observation_size = env.observation_space.shape[0]
 
 action_is_discrete = False
@@ -60,7 +64,8 @@ def computeReward(agent, render=False, debug=False):
                 break
     avg_reward = all_run_reward_sum / EVAL_RUNS
     avg_frame = all_frame_sum / EVAL_RUNS
-    won = False
+    
+    won = avg_reward >= WINNING_REWARD
     return avg_reward, actions, avg_frame, won
 
 def summarize_actions(actions):
@@ -76,3 +81,6 @@ def summarize_actions(actions):
         count += 1
     summarized.append((last_action, count))
     return summarized
+
+def close():
+    env.close()

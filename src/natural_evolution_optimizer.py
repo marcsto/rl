@@ -51,10 +51,11 @@ class NaturalEvolutionOptimizer:
             #    R = F
             #    mean = np.mean(R)
             stdDev = np.std(R)
-            
+                
             if (stdDev == 0):
                 print("All equal")
                 if (won):
+                    task.close()
                     break;
                 # Set a new random starting position
                 #w = np.random.randn(LinearModel.weight_count)
@@ -66,6 +67,7 @@ class NaturalEvolutionOptimizer:
                 if ((i + 1) % 25 == 0):
                     print("Mean", mean, won, i, repr(w))
                 else:
-                    print("Mean", mean, "Best", R[best_vector_index], won, i)
+                    dist = np.linalg.norm(w-initial_weight)
+                    print("Mean", mean, "Best", R[best_vector_index], won, dist, i)
         print(w)
         return w + sigma * N[best_vector_index], R[best_vector_index]
