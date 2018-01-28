@@ -11,18 +11,29 @@
 class FastPredict:
     
     def _createGenerator(self):
-        while True:
+        while not self.closed:
             yield self.next_features
-
+    
     def __init__(self, estimator):
         self.estimator = estimator
         self.first_run = True
+        self.closed = False
         
     def predict(self, features):
         self.next_features = features
         if self.first_run:
-            self.predictions = self.estimator.predict(x = self._createGenerator())
+            self.batch_size = len(features)
+            self.predictions = self.estimator.predict(x = self._createGenerator(), batch_size=None)
             self.first_run = False
-        return next(self.predictions)
+        elif self.batch_size != len(features):
+            raise ValueError("All batches must be of the same size. First-batch:" + str(self.batch_size) + " This-batch:" + str(len(features)))
+        
+        results = []
+        for _ in range(self.batch_size):
+            results.append(next(self.predictions))
+        return results 
         
     
+    def close(self):
+        self.closed=True
+        next(self.predictions)
