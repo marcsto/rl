@@ -5,6 +5,8 @@
     Usage: Just warp your estimator in a FastPredict. i.e.
     classifier = FastPredict(learn.Estimator(model_fn=model_params.model_fn, model_dir=model_params.model_dir))
     
+    NOTE!! There's a new version of fast predict which supports tf 1.4 and later. See fast_predict2.py.
+    
     Author: Marc Stogaitis
  """
 
